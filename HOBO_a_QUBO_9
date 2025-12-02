@@ -1,0 +1,72 @@
+import dimod
+from dimod.reference.samplers import ExactSolver
+
+# --- PRUEBA DE REDUCCIÓN HOBO a QUBO ---
+#
+# Problema HOBO (Grado 4): Minimizar H = x0*x1*x2*x4
+# Este término se identificó en el borrador original del TFG [cite: 371]
+#
+# Reducción (Paso 1): Introducimos y0 = x0*x1
+# Reducción (Paso 2): Introducimos y1 = x2*x4
+#
+# H_reducido = y0*y1
+#
+# Necesitamos forzar las restricciones (y0 = x0*x1) y (y1 = x2*x4)
+# La formulación QUBO para una penalización P(a,b,y) que fuerza y = a*b es:
+# P = M * (a*b - 2*a*y - 2*b*y + 3*y)
+#
+# El Hamiltoniano QUBO total es:
+# H_QUBO = H_reducido + Penalización_y0 + Penalización_y1
+# H_QUBO = y0*y1 + M*(x0*x1 - 2*x0*y0 - 2*x1*y0 + 3*y0) + M*(x2*x4 - 2*x2*y1 - 2*x4*y1 + 3*y1)
+#
+# El valor mínimo de H_HOBO es 0. El máximo es 1.
+# La penalización M debe ser > 1. Usamos M=2.
+
+M = 2.0
+
+Q_HOBO_reducido = {
+    # H_reducido = y0*y1
+    ('y0', 'y1'): 1.0,
+    
+    # Penalización 1: M*(x0*x1 - 2*x0*y0 - 2*x1*y0 + 3*y0)
+    ('x0', 'x1'): M * 1.0,
+    ('x0', 'y0'): M * -2.0,
+    ('x1', 'y0'): M * -2.0,
+    ('y0', 'y0'): M * 3.0, # Término lineal de y0
+    
+    # Penalización 2: M*(x2*x4 - 2*x2*y1 - 2*x4*y1 + 3*y1)
+    ('x2', 'x4'): M * 1.0,
+    ('x2', 'y1'): M * -2.0,
+    ('x4', 'y1'): M * -2.0,
+    ('y1', 'y1'): M * 3.0, # Término lineal de y1
+}
+
+modelo_qubo_hobo = dimod.BQM.from_qubo(Q_HOBO_reducido)
+
+print("-------------------------------------------------------")
+print("--- PRUEBA DE REDUCCIÓN HOBO a QUBO (Grado 4) ---")
+print("--- H = x0*x1*x2*x4 ---")
+print("-------------------------------------------------------")
+print(f"Variables totales (4 originales + 2 auxiliares): {modelo_qubo_hobo.variables}")
+print(f"Penalización M = {M}")
+print("-------------------------------------------------------")
+
+# Solucionador Exacto (2^6 = 64 estados)
+sampler_exacto = ExactSolver()
+resultados_hobo = sampler_exacto.sample(modelo_qubo_hobo)
+
+print("\n--- RESULTADOS DEL SOLUCIONADOR EXACTO (HOBO) ---")
+print("Se muestran los estados de mínima y máxima energía:")
+
+# Obtenemos todos los resultados
+todos_los_resultados = list(resultados_hobo.data(fields=['sample', 'energy'], sorted_by='energy'))
+
+# Imprimimos los 5 mejores (H=0)
+print("\nEstados de Mínima Energía (H=0):")
+for sample, energy in todos_los_resultados[:5]:
+    print(f"  Config: {sample}, Energía: {energy:.1f}")
+
+# Imprimimos el peor (H=1)
+print("\nEstado de Máxima Energía (H=1):")
+peor_resultado = todos_los_resultados[-1]
+print(f"  Config: {peor_resultado.sample}, Energía: {peor_resultado.energy:.1f}")
