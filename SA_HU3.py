@@ -33,4 +33,5 @@ print("\nTop 3 Soluciones encontradas (frecuencia):")
 for sample, energy, count in list(resultados_neal.data(fields=['sample', 'energy', 'num_occurrences'], sorted_by='energy'))[:3]:
     # Hacemos el mapeo lógico para entender el resultado
     logica = "f = f^D (Auto-Dualidad SÍ se cumple)" if energy == 0 else f"f != f^D (Penalización: {energy})"
+
     print(f"Configuración {sample}: Energía {energy} (Ocurrencias: {count}) -> {logica}")
